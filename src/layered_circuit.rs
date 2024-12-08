@@ -187,7 +187,12 @@ fn io_labels(
     name_to_index: &HashMap<String, usize>,
     widths: Vec<usize>,
 ) -> Vec<CircuitLabel> {
-    let ordered = ordered_io(name_to_index);
+    let mut ordered = name_to_index
+        .iter()
+        .map(|(name, &index)| (name.clone(), index))
+        .collect::<Vec<_>>();
+
+    ordered.sort_by_key(|(_, index)| *index);
 
     assert!(
         ordered.len() == widths.len(),
@@ -199,17 +204,4 @@ fn io_labels(
         .zip(widths.into_iter())
         .map(|((name, start), bits)| CircuitLabel { name, start, bits })
         .collect()
-}
-
-fn ordered_io(
-    name_to_index: &HashMap<String, usize>,
-) -> Vec<(String, usize)> {
-    let mut ordered = name_to_index
-        .iter()
-        .map(|(name, &index)| (name.clone(), index))
-        .collect::<Vec<_>>();
-
-    ordered.sort_by_key(|(_, index)| *index);
-
-    ordered
 }
