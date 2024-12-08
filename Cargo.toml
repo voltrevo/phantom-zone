@@ -14,6 +14,7 @@ rustfft = "6.2.0"
 serde = "1.0"
 serde_bytes = "0.11"
 unroll = "0.1.5"
+bristol-circuit = { git = "https://github.com/voltrevo/bristol-circuit", rev = "2394ccc" }
 
 # dev-dependencies
 bincode = "1.3.3"
