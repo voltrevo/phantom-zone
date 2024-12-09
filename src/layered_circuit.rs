@@ -67,18 +67,13 @@ impl LayeredCircuit {
             bristol_circuit.io_widths.0.clone(),
         );
 
-        let mut input_wires = Vec::<usize>::new();
-
-        for input in &inputs {
-            for i in 0..input.bits {
-                input_wires.push(input.start + i);
-            }
-        }
-
         let outputs = io_labels(
             &bristol_circuit.info.output_name_to_wire_index,
             bristol_circuit.io_widths.1.clone(),
         );
+
+        let input_wires = io_wires(&inputs);
+        let output_wires = io_wires(&outputs);
 
         let gates = ingest_bristol_gates(&bristol_circuit.gates);
 
@@ -86,7 +81,7 @@ impl LayeredCircuit {
             wire_count: bristol_circuit.wire_count,
             inputs,
             outputs,
-            layers: separate_layers(&gates, input_wires),
+            layers: separate_layers(&gates, input_wires, output_wires),
         }
     }
 }
@@ -94,6 +89,7 @@ impl LayeredCircuit {
 fn separate_layers(
     gates: &Vec<Gate>,
     input_wires: Vec<usize>,
+    output_wires: Vec<usize>,
 ) -> Vec<Layer> {
     let mut layers = Vec::<Layer>::new();
 
@@ -114,6 +110,8 @@ fn separate_layers(
         }
     }
 
+    let mut gates_included = vec![false; gates.len()];
+
     let mut wires_resolved = input_wires;
 
     while wires_resolved.len() > 0 {
@@ -130,8 +128,27 @@ fn separate_layers(
                     gate_deps_remaining[gate_i] -= 1;
 
                     if gate_deps_remaining[gate_i] == 0 {
-                        next_layer.gates.push(gates[gate_i].clone());
-                        next_wires_resolved.push(gates[gate_i].out());
+                        let gate = gates[gate_i].clone();
+
+                        gates_included[gate_i] = true;
+                        next_wires_resolved.push(gate.out());
+
+                        for gate_input in gate.inputs() {
+                            let mut still_needed = false;
+
+                            for other_gate in input_wire_to_gates.get(&gate_input).unwrap() {
+                                if !gates_included[*other_gate] {
+                                    still_needed = true;
+                                    break;
+                                }
+                            }
+
+                            if !still_needed {
+                                next_layer.prunes.push(gate_input);
+                            }
+                        }
+
+                        next_layer.gates.push(gate);
                     }
                 }
             }
@@ -141,7 +158,7 @@ fn separate_layers(
         wires_resolved = next_wires_resolved;
     }
 
-    // todo: pruning
+    // todo: check all gates included and prunes+outputs = all wires
 
     layers
 }
@@ -203,5 +220,15 @@ fn io_labels(
         .into_iter()
         .zip(widths.into_iter())
         .map(|((name, start), bits)| CircuitLabel { name, start, bits })
+        .collect()
+}
+
+fn io_wires(labels: &Vec<CircuitLabel>) -> Vec<usize> {
+    labels
+        .iter()
+        .flat_map(|label| {
+            (label.start..(label.start + label.bits))
+                .collect::<Vec<_>>()
+        })
         .collect()
 }
