@@ -158,7 +158,14 @@ fn separate_layers(
         wires_resolved = next_wires_resolved;
     }
 
-    // todo: check all gates included and prunes+outputs = all wires
+    assert!(gates_included.iter().all(|&b| b), "Not all gates included");
+
+    let prune_count = layers.iter().map(|l| l.prunes.len()).sum::<usize>();
+
+    assert!(
+        prune_count == output_wires.len() - output_wires.len(),
+        "All non-output wires should have been pruned"
+    );
 
     layers
 }
