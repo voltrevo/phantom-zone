@@ -1,6 +1,29 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    ops::{BitAnd, BitOr, BitXor, Not},
+};
 
 use bristol_circuit::BristolCircuit;
+
+pub trait BooleanOps:
+    Sized
+    + Clone
+    + BitAnd<Self, Output = Self>
+    + BitOr<Self, Output = Self>
+    + BitXor<Self, Output = Self>
+    + Not<Output = Self>
+{
+}
+
+impl<T> BooleanOps for T where
+    T: Sized
+        + Clone
+        + BitAnd<Self, Output = Self>
+        + BitOr<Self, Output = Self>
+        + BitXor<Self, Output = Self>
+        + Not<Output = Self>
+{
+}
 
 #[derive(Debug)]
 pub struct LayeredCircuit {
@@ -100,6 +123,10 @@ impl LayeredCircuit {
                 output_wires,
             ),
         }
+    }
+
+    pub fn eval<T: BooleanOps>(&self, inputs: HashMap<String, T>) -> HashMap<String, T> {
+        todo!()
     }
 }
 
