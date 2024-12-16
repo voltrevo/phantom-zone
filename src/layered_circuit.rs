@@ -1,7 +1,8 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use bristol_circuit::BristolCircuit;
 
+#[derive(Debug)]
 pub struct LayeredCircuit {
     pub wire_count: usize,
     pub inputs: Vec<CircuitLabel>,
@@ -9,34 +10,45 @@ pub struct LayeredCircuit {
     pub layers: Vec<Layer>,
 }
 
+#[derive(Debug)]
 struct CircuitLabel {
     pub name: String,
     pub start: usize,
     pub bits: usize,
 }
 
+#[derive(Debug)]
 struct Layer {
     pub gates: Vec<Gate>,
     pub prunes: Vec<usize>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum BinaryOp {
     And,
     Or,
     Xor,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum UnaryOp {
     Not,
     Copy,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum Gate {
-    Unary { op: UnaryOp, in_: usize, out: usize },
-    Binary { op: BinaryOp, a: usize, b: usize, out: usize },
+    Unary {
+        op: UnaryOp,
+        in_: usize,
+        out: usize,
+    },
+    Binary {
+        op: BinaryOp,
+        a: usize,
+        b: usize,
+        out: usize,
+    },
 }
 
 impl Gate {
@@ -81,13 +93,19 @@ impl LayeredCircuit {
             wire_count: bristol_circuit.wire_count,
             inputs,
             outputs,
-            layers: separate_layers(&gates, input_wires, output_wires),
+            layers: separate_layers(
+                &gates,
+                bristol_circuit.wire_count,
+                input_wires,
+                output_wires,
+            ),
         }
     }
 }
 
 fn separate_layers(
     gates: &Vec<Gate>,
+    wire_count: usize,
     input_wires: Vec<usize>,
     output_wires: Vec<usize>,
 ) -> Vec<Layer> {
@@ -103,6 +121,8 @@ fn separate_layers(
             Gate::Binary { .. } => 2,
         })
         .collect::<Vec<_>>();
+
+    let output_wire_set = output_wires.iter().collect::<HashSet<_>>();
 
     for (gate_i, gate) in gates.iter().enumerate() {
         for input in gate.inputs() {
@@ -134,6 +154,10 @@ fn separate_layers(
                         next_wires_resolved.push(gate.out());
 
                         for gate_input in gate.inputs() {
+                            if output_wire_set.contains(&gate_input) {
+                                continue;
+                            }
+
                             let mut still_needed = false;
 
                             for other_gate in input_wire_to_gates.get(&gate_input).unwrap() {
@@ -163,7 +187,7 @@ fn separate_layers(
     let prune_count = layers.iter().map(|l| l.prunes.len()).sum::<usize>();
 
     assert!(
-        prune_count == output_wires.len() - output_wires.len(),
+        prune_count == wire_count - output_wires.len(),
         "All non-output wires should have been pruned"
     );
 
@@ -207,10 +231,7 @@ fn ingest_bristol_gates(gates: &[bristol_circuit::Gate]) -> Vec<Gate> {
         .collect()
 }
 
-fn io_labels(
-    name_to_index: &HashMap<String, usize>,
-    widths: Vec<usize>,
-) -> Vec<CircuitLabel> {
+fn io_labels(name_to_index: &HashMap<String, usize>, widths: Vec<usize>) -> Vec<CircuitLabel> {
     let mut ordered = name_to_index
         .iter()
         .map(|(name, &index)| (name.clone(), index))
@@ -233,9 +254,6 @@ fn io_labels(
 fn io_wires(labels: &Vec<CircuitLabel>) -> Vec<usize> {
     labels
         .iter()
-        .flat_map(|label| {
-            (label.start..(label.start + label.bits))
-                .collect::<Vec<_>>()
-        })
+        .flat_map(|label| (label.start..(label.start + label.bits)).collect::<Vec<_>>())
         .collect()
 }
