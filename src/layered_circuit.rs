@@ -3,6 +3,8 @@ use std::{
     ops::{BitAnd, BitOr, BitXor, Not},
 };
 
+use rayon::prelude::*;
+
 use bristol_circuit::BristolCircuit;
 
 pub trait BooleanOps:
@@ -28,9 +30,9 @@ impl<T> BooleanOps for T where
 #[derive(Debug)]
 pub struct LayeredCircuit {
     pub wire_count: usize,
-    pub inputs: Vec<CircuitLabel>,
-    pub outputs: Vec<CircuitLabel>,
-    pub layers: Vec<Layer>,
+    inputs: Vec<CircuitLabel>,
+    outputs: Vec<CircuitLabel>,
+    layers: Vec<Layer>,
 }
 
 #[derive(Debug)]
@@ -125,8 +127,74 @@ impl LayeredCircuit {
         }
     }
 
-    pub fn eval<T: BooleanOps>(&self, inputs: HashMap<String, T>) -> HashMap<String, T> {
-        todo!()
+    pub fn eval<T: BooleanOps + Sync + Send>(
+        &self,
+        inputs: HashMap<String, Vec<T>>,
+    ) -> HashMap<String, Vec<T>> {
+        let mut wires = HashMap::<usize, T>::new();
+
+        for input_label in &self.inputs {
+            let input = inputs.get(&input_label.name).unwrap();
+
+            assert!(
+                input.len() == input_label.bits,
+                "Input length mismatch for {}",
+                input_label.name,
+            );
+
+            for i in 0..input_label.bits {
+                wires.insert(input_label.start + i, input[i].clone());
+            }
+        }
+
+        for layer in &self.layers {
+            let assignments = layer
+                .gates
+                .par_iter()
+                .map(|gate| match gate {
+                    Gate::Unary { op, in_, out } => {
+                        let in_val = wires.get(in_).unwrap().clone();
+                        let out_val = match op {
+                            UnaryOp::Not => !in_val,
+                            UnaryOp::Copy => in_val,
+                        };
+
+                        (*out, out_val)
+                    }
+                    Gate::Binary { op, a, b, out } => {
+                        let a_val = wires.get(a).unwrap().clone();
+                        let b_val = wires.get(b).unwrap().clone();
+                        let out_val = match op {
+                            BinaryOp::And => a_val & b_val,
+                            BinaryOp::Or => a_val | b_val,
+                            BinaryOp::Xor => a_val ^ b_val,
+                        };
+
+                        (*out, out_val)
+                    }
+                })
+                .collect::<Vec<_>>();
+
+            for (wire, val) in assignments {
+                wires.insert(wire, val);
+            }
+
+            for prune in &layer.prunes {
+                wires.remove(prune);
+            }
+        }
+
+        let mut outputs = HashMap::<String, Vec<T>>::new();
+
+        for output_label in &self.outputs {
+            let output = (0..output_label.bits)
+                .map(|i| wires.get(&(output_label.start + i)).unwrap().clone())
+                .collect();
+
+            outputs.insert(output_label.name.clone(), output);
+        }
+
+        outputs
     }
 }
 
@@ -161,7 +229,7 @@ fn separate_layers(
 
     let mut wires_resolved = input_wires;
 
-    while wires_resolved.len() > 0 {
+    loop {
         let mut next_layer = Layer {
             gates: Vec::<Gate>::new(),
             prunes: Vec::<usize>::new(),
@@ -203,6 +271,10 @@ fn separate_layers(
                     }
                 }
             }
+        }
+
+        if next_layer.gates.len() == 0 {
+            break;
         }
 
         layers.push(next_layer);
