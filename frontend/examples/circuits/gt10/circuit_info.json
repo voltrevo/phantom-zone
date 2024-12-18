@@ -1,0 +1,9 @@
+{
+  "input_name_to_wire_index": {
+    "x": 0
+  },
+  "constants": {},
+  "output_name_to_wire_index": {
+    "main": 13
+  }
+}

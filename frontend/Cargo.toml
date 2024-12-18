@@ -1,0 +1,12 @@
+[package]
+name = "frontend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bristol-circuit = { git = "https://github.com/voltrevo/bristol-circuit", rev = "2394ccc" }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+rayon = { workspace = true }
+
+[dev-dependencies]

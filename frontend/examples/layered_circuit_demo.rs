@@ -1,16 +1,16 @@
-use std::{collections::HashMap, fs};
+use std::collections::HashMap;
 
 use bristol_circuit::{BristolCircuit, CircuitInfo};
-use phantom_zone::LayeredCircuit;
+use frontend::LayeredCircuit;
 use serde_json::from_str;
 
-fn main() {
-    let circuit_info: CircuitInfo =
-        from_str(&fs::read_to_string("tmp/circuit_info.json").unwrap()).unwrap();
+const CIRCUIT_STR: &str = include_str!("./circuits/gt10/circuit.txt");
+const CIRCUIT_INFO_STR: &str = include_str!("./circuits/gt10/circuit_info.json");
 
+fn main() {
     let circuit = BristolCircuit::from_info_and_bristol_string(
-        &circuit_info,
-        &fs::read_to_string("tmp/circuit.txt").unwrap(),
+        &from_str::<CircuitInfo>(CIRCUIT_INFO_STR).unwrap(),
+        CIRCUIT_STR,
     )
     .unwrap();
 

@@ -1,5 +1,5 @@
 [workspace]
-members = ["crypto", "derive", "evaluator", "math"]
+members = ["crypto", "derive", "evaluator", "math", "frontend"]
 resolver = "2"
 
 [workspace.dependencies]
