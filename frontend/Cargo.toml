@@ -5,6 +5,9 @@ edition = "2021"
 
 [dependencies]
 bristol-circuit = { git = "https://github.com/voltrevo/bristol-circuit", rev = "2394ccc" }
+summon_compiler = { git = "https://github.com/voltrevo/summon", rev = "0eb8ff2" }
+summon_cli = { git = "https://github.com/voltrevo/summon", rev = "0eb8ff2" }
+boolify = { git = "https://github.com/voltrevo/boolify", rev = "204bf68" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 rayon = { workspace = true }

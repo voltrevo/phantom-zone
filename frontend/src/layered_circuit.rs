@@ -5,7 +5,10 @@ use std::{
 
 use rayon::prelude::*;
 
+use boolify::boolify;
 use bristol_circuit::BristolCircuit;
+use summon_cli::handle_diagnostics_cli;
+use summon_compiler::{compile, CompileOk, ResolvedPath};
 
 pub trait BooleanOps:
     Sized
@@ -93,6 +96,36 @@ impl Gate {
 }
 
 impl LayeredCircuit {
+    pub fn from_summon<ReadFile>(
+        entry_point: ResolvedPath,
+        boolify_width: usize,
+        read_file: ReadFile,
+    ) -> Self
+    where
+        ReadFile: Fn(&str) -> Result<String, String>,
+    {
+        let compile_result = compile(entry_point, read_file);
+
+        let diagnostics = match &compile_result {
+            Ok(ok) => &ok.diagnostics,
+            Err(err) => &err.diagnostics,
+        };
+
+        handle_diagnostics_cli(diagnostics);
+
+        let CompileOk {
+            circuit,
+            diagnostics,
+        } = compile_result.expect("Error should have caused earlier exit");
+
+        handle_diagnostics_cli(&diagnostics);
+
+        let bristol_circuit = boolify(&circuit.to_bristol(), boolify_width);
+        let layered_circuit = Self::from_bristol(&bristol_circuit);
+
+        layered_circuit
+    }
+
     pub fn from_bristol(bristol_circuit: &BristolCircuit) -> Self {
         assert!(
             bristol_circuit.info.constants.is_empty(),
