@@ -213,6 +213,8 @@ name = "frontend"
 version = "0.1.0"
 dependencies = [
  "bristol-circuit",
+ "phantom-zone-evaluator",
+ "rand",
  "rayon",
  "serde",
  "serde_json",
